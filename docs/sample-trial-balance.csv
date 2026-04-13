@@ -1,0 +1,11 @@
+AccountCode,AccountName,Debit,Credit
+1000,Cash,50000.00,0.00
+1200,Accounts Receivable,25000.00,0.00
+1500,Equipment,75000.00,0.00
+2000,Accounts Payable,0.00,30000.00
+2100,Notes Payable,0.00,50000.00
+3000,Owner Equity,0.00,60000.00
+4000,Service Revenue,0.00,80000.00
+5000,Rent Expense,20000.00,0.00
+5100,Salary Expense,35000.00,0.00
+5200,Utilities Expense,15000.00,0.00

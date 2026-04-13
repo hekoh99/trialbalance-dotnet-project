@@ -1,0 +1,21 @@
+# .NET
+**/bin/
+**/obj/
+**/*.user
+appsettings.Development.json
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/venv/
+**/.env
+
+# Angular
+**/node_modules/
+**/dist/
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfvars

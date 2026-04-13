@@ -1,0 +1,60 @@
+<div>
+  <a routerLink="/engagements" class="text-sm text-blue-600 hover:text-blue-800 mb-4 inline-block">&larr; Back to Engagements</a>
+
+  @if (loading()) {
+    <div class="text-center py-12 text-gray-500">Loading...</div>
+  } @else if (engagement(); as eng) {
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900">{{ eng.clientName }}</h1>
+      <p class="text-sm text-gray-500 mt-1">
+        Fiscal Year End: {{ eng.fiscalYearEnd | date:'mediumDate' }}
+        &middot; Created {{ eng.createdAt | date:'short' }}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Upload Section -->
+      <div class="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold mb-4">Upload Trial Balance</h2>
+        <app-trial-balance-upload
+          [engagementId]="engagementId"
+          (uploadComplete)="onUploadComplete()" />
+      </div>
+
+      <!-- Trial Balances Section -->
+      <div class="bg-white rounded-lg border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold mb-4">Trial Balances</h2>
+        @if (eng.trialBalances.length === 0) {
+          <p class="text-sm text-gray-500">No trial balances uploaded yet.</p>
+        } @else {
+          <div class="space-y-3">
+            @for (tb of eng.trialBalances; track tb.id) {
+              <div class="border border-gray-100 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium text-sm">{{ tb.fileName }}</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                      {{ tb.glEntryCount }} entries &middot; {{ tb.submittedAt | date:'short' }}
+                    </p>
+                  </div>
+                  <div class="text-right">
+                    <span
+                      class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                      [class]="tb.isBalanced ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                      {{ tb.isBalanced ? 'Balanced' : 'Unbalanced' }}
+                    </span>
+                    <p class="text-xs text-gray-500 mt-1">
+                      D: {{ tb.totalDebits | number:'1.2-2' }} / C: {{ tb.totalCredits | number:'1.2-2' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="text-center py-12 text-gray-500">Engagement not found.</div>
+  }
+</div>

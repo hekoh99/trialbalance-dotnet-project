@@ -1,0 +1,55 @@
+<div>
+  <!-- Drop Zone -->
+  <div
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+    class="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors"
+    [class]="dragging() ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'">
+
+    @if (uploading()) {
+      <div class="text-gray-500">
+        <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <p class="text-sm">Uploading and parsing CSV...</p>
+      </div>
+    } @else {
+      <div>
+        <svg class="h-10 w-10 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <p class="text-sm text-gray-600 mb-1">Drag & drop a CSV file here</p>
+        <p class="text-xs text-gray-400">or</p>
+        <label class="mt-2 inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded-lg cursor-pointer hover:bg-blue-700">
+          Browse Files
+          <input type="file" accept=".csv" (change)="onFileSelected($event)" class="hidden" />
+        </label>
+      </div>
+    }
+  </div>
+
+  <!-- Error -->
+  @if (error()) {
+    <div class="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Success -->
+  @if (uploadResult(); as result) {
+    <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+      <p class="font-medium">Upload successful!</p>
+      <p class="mt-1">
+        {{ result.glEntryCount }} GL entries parsed &middot;
+        Debits: {{ result.totalDebits | number:'1.2-2' }} &middot;
+        Credits: {{ result.totalCredits | number:'1.2-2' }} &middot;
+        <span [class]="result.isBalanced ? 'text-green-800 font-medium' : 'text-red-700 font-medium'">
+          {{ result.isBalanced ? 'Balanced' : 'Unbalanced' }}
+        </span>
+      </p>
+    </div>
+  }
+</div>
