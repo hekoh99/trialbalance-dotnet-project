@@ -34,7 +34,14 @@ variable "postgres_connection_string" {
   default     = ""
 }
 
-variable "azure_openai_location" {
-  description = "Azure OpenAI 리전 (Canada East 고정)"
-  default     = "canadaeast"
+variable "azure_openai_key" {
+  description = "Azure OpenAI API key (from separate resource)"
+  sensitive   = true
+  default     = ""
+}
+
+variable "azure_openai_endpoint" {
+  description = "Azure OpenAI endpoint URL (from separate resource)"
+  sensitive   = true
+  default     = ""
 }

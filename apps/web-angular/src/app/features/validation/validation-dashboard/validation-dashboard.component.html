@@ -1,0 +1,145 @@
+<div>
+  <a [routerLink]="['/engagements', engagementId]"
+     class="text-sm text-blue-600 hover:text-blue-800 mb-4 inline-block">&larr; Back to engagement</a>
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Validation</h1>
+      <p class="text-sm text-gray-500 mt-1">Real-time status, classification, and flagged items.</p>
+    </div>
+    <span [class]="'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ' + statusBadgeClass(status())">
+      {{ status() }}
+    </span>
+  </div>
+
+  <!-- Failed: error message + retry -->
+  @if (status() === 'Failed') {
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+      <p class="text-sm text-red-800 font-medium">Validation failed.</p>
+      @if (errorMessage()) {
+        <p class="text-sm text-red-700 mt-1">{{ errorMessage() }}</p>
+      }
+      <button
+        (click)="retry()"
+        [disabled]="retrying() || !trialBalanceId"
+        class="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50">
+        {{ retrying() ? 'Retrying…' : 'Retry validation' }}
+      </button>
+    </div>
+  }
+
+  <!-- Queued / Processing progress indicator -->
+  @if (status() === 'Queued' || status() === 'Processing') {
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 flex items-center gap-3">
+      <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <div>
+        <p class="text-sm font-medium text-blue-900">
+          {{ status() === 'Queued' ? 'Waiting in queue…' : 'Classifying GL entries with Azure OpenAI…' }}
+        </p>
+        <p class="text-xs text-blue-700">You can leave this page; results auto-update.</p>
+      </div>
+    </div>
+  }
+
+  <!-- Completed: balance summary + account type summary + classifications table -->
+  @if (result(); as r) {
+    <!-- Balance summary -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Balance</p>
+        <p class="mt-2 text-2xl font-semibold"
+           [class]="r.isBalanced ? 'text-green-700' : 'text-red-700'">
+          {{ r.isBalanced ? 'Balanced ✓' : 'Unbalanced ✗' }}
+        </p>
+        <p class="text-xs text-gray-500 mt-1">Variance: {{ r.variance | number:'1.2-2' }}</p>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Debits</p>
+        <p class="mt-2 text-2xl font-semibold">{{ r.totalDebits | number:'1.2-2' }}</p>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Credits</p>
+        <p class="mt-2 text-2xl font-semibold">{{ r.totalCredits | number:'1.2-2' }}</p>
+      </div>
+    </div>
+
+    <!-- Summary by account type -->
+    @if (summaryEntries().length > 0) {
+      <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <p class="text-sm font-medium text-gray-700 mb-3">Accounts by type</p>
+        <div class="flex flex-wrap gap-2">
+          @for (entry of summaryEntries(); track entry[0]) {
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              {{ entry[0] }}: {{ entry[1] }}
+            </span>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Flagged items — scenario 2 highlight -->
+    @if (r.flaggedItems.length > 0) {
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <p class="text-sm font-medium text-amber-900 mb-3">
+          ⚠️ {{ r.flaggedItems.length }} item(s) need review
+        </p>
+        <ul class="space-y-2">
+          @for (flag of r.flaggedItems; track $index) {
+            <li class="text-sm text-amber-900">
+              <span class="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">
+                {{ flag.accountCode }}
+              </span>
+              <span class="font-medium">{{ flag.accountName }}</span>
+              — <span class="uppercase text-xs">{{ flag.type }}</span>
+              @if (flag.detail) { <span class="text-amber-700">({{ flag.detail }})</span> }
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Classifications table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-200">
+        <p class="text-sm font-medium text-gray-700">Classifications ({{ r.classifications.length }})</p>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+          <tr>
+            <th class="text-left px-4 py-2">Code</th>
+            <th class="text-left px-4 py-2">Account</th>
+            <th class="text-left px-4 py-2">Type</th>
+            <th class="text-right px-4 py-2">Confidence</th>
+            <th class="text-left px-4 py-2">Flags</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          @for (c of r.classifications; track c.accountCode) {
+            <tr [class.bg-amber-50]="flagsByAccount().has(c.accountCode)">
+              <td class="px-4 py-2 font-mono text-xs">{{ c.accountCode }}</td>
+              <td class="px-4 py-2">{{ c.accountName }}</td>
+              <td class="px-4 py-2">
+                <span [class]="'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ' + accountTypeBadgeClass(c.classifiedAs)">
+                  {{ c.classifiedAs }}
+                </span>
+              </td>
+              <td class="px-4 py-2 text-right">{{ (c.confidence * 100) | number:'1.0-0' }}%</td>
+              <td class="px-4 py-2">
+                @for (f of c.flags; track $index) {
+                  <span class="inline-block mr-1 px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800">
+                    {{ f.type }}
+                  </span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else if (status() === 'Completed' && loadingResult()) {
+    <div class="text-center py-12 text-gray-500">Loading results…</div>
+  }
+</div>

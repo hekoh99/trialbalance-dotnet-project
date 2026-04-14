@@ -6,10 +6,11 @@ output "servicebus_namespace_name" {
   value = module.servicebus.namespace_name
 }
 
-output "openai_endpoint" {
-  value     = module.openai.endpoint
-  sensitive = true
-}
+# OpenAI managed separately — endpoint/key passed via variables
+# output "openai_endpoint" {
+#   value     = module.openai.endpoint
+#   sensitive = true
+# }
 
 output "key_vault_uri" {
   value = module.keyvault.vault_uri

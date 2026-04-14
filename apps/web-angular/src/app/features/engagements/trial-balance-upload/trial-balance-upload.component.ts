@@ -1,6 +1,9 @@
 import { Component, Input, Output, EventEmitter, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { EngagementService } from '../../../core/services/engagement.service';
+import { ValidationService } from '../../../core/services/validation.service';
+import { TrialBalanceUploadResult } from '../../../core/models/engagement.model';
 
 @Component({
   selector: 'app-trial-balance-upload',
@@ -14,10 +17,15 @@ export class TrialBalanceUploadComponent {
 
   dragging = signal(false);
   uploading = signal(false);
-  uploadResult = signal<any>(null);
+  triggering = signal(false);
+  uploadResult = signal<TrialBalanceUploadResult | null>(null);
   error = signal<string | null>(null);
 
-  constructor(private engagementService: EngagementService) {}
+  constructor(
+    private engagementService: EngagementService,
+    private validationService: ValidationService,
+    private router: Router,
+  ) {}
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
@@ -59,15 +67,39 @@ export class TrialBalanceUploadComponent {
     this.error.set(null);
     this.uploadResult.set(null);
 
+    // Upload → parse → (server 201) → auto-trigger validation → navigate to
+    // dashboard. The dashboard opens the SignalR connection and renders live
+    // Queued / Processing / Completed | Failed badge, so the user never has to
+    // click a separate "Validate" button (aligns with the "automation" value).
     this.engagementService.uploadTrialBalance(this.engagementId, file).subscribe({
       next: (result) => {
         this.uploadResult.set(result);
         this.uploading.set(false);
         this.uploadComplete.emit();
+        this.triggerValidation(result.id);
       },
       error: (err) => {
         this.error.set(err.error?.message || 'Upload failed. Please try again.');
         this.uploading.set(false);
+      },
+    });
+  }
+
+  private triggerValidation(trialBalanceId: string) {
+    this.triggering.set(true);
+    this.validationService.trigger(this.engagementId, trialBalanceId).subscribe({
+      next: () => {
+        this.triggering.set(false);
+        this.router.navigate(
+          ['/engagements', this.engagementId, 'validation'],
+          { queryParams: { trialBalanceId } },
+        );
+      },
+      error: (err) => {
+        this.triggering.set(false);
+        this.error.set(
+          err.error?.message ?? 'Validation could not be started. Try again from the engagement page.',
+        );
       },
     });
   }

@@ -1,7 +1,11 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Engagement, CreateEngagementRequest } from '../models/engagement.model';
+import {
+  Engagement,
+  CreateEngagementRequest,
+  TrialBalanceUploadResult,
+} from '../models/engagement.model';
 
 @Injectable({ providedIn: 'root' })
 export class EngagementService {
@@ -21,9 +25,15 @@ export class EngagementService {
     return this.http.post<Engagement>(this.apiUrl, request);
   }
 
-  uploadTrialBalance(engagementId: string, file: File): Observable<any> {
+  uploadTrialBalance(
+    engagementId: string,
+    file: File,
+  ): Observable<TrialBalanceUploadResult> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post(`${this.apiUrl}/${engagementId}/trial-balance`, formData);
+    return this.http.post<TrialBalanceUploadResult>(
+      `${this.apiUrl}/${engagementId}/trial-balance`,
+      formData,
+    );
   }
 }

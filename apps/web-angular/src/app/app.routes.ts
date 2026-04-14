@@ -18,4 +18,10 @@ export const routes: Routes = [
       import('./features/engagements/engagement-detail/engagement-detail.component')
         .then(m => m.EngagementDetailComponent),
   },
+  {
+    path: 'engagements/:id/validation',
+    loadComponent: () =>
+      import('./features/validation/validation-dashboard/validation-dashboard.component')
+        .then(m => m.ValidationDashboardComponent),
+  },
 ];

@@ -20,3 +20,15 @@ export interface CreateEngagementRequest {
   clientName: string;
   fiscalYearEnd: string;
 }
+
+/** Response returned by POST /api/engagements/{id}/trial-balance. */
+export interface TrialBalanceUploadResult {
+  id: string;
+  engagementId: string;
+  fileName: string;
+  submittedAt: string;
+  totalDebits: number;
+  totalCredits: number;
+  isBalanced: boolean;
+  glEntryCount: number;
+}

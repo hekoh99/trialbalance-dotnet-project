@@ -5,25 +5,31 @@ import { ValidationStatus } from '../models/validation-result.model';
 
 @Injectable({ providedIn: 'root' })
 export class SignalRService {
-  private hubConnection!: signalR.HubConnection;
+  private hubConnection?: signalR.HubConnection;
 
+  /**
+   * Connect to the validation hub and subscribe to a single engagement's status
+   * updates. Returns an Observable that completes when the caller unsubscribes;
+   * teardown also stops the hub connection to avoid leaking WebSockets.
+   */
   connect(engagementId: string): Observable<ValidationStatus> {
-    this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5211/hubs/validation')
-      .withAutomaticReconnect()
-      .build();
+    return new Observable<ValidationStatus>(observer => {
+      this.hubConnection = new signalR.HubConnectionBuilder()
+        .withUrl('http://localhost:5211/hubs/validation')
+        .withAutomaticReconnect()
+        .build();
 
-    return new Observable(observer => {
       this.hubConnection.on('ValidationStatusUpdated', (data: ValidationStatus) => {
         observer.next(data);
       });
 
-      this.hubConnection.start()
-        .then(() => this.hubConnection.invoke('JoinEngagement', engagementId))
+      this.hubConnection
+        .start()
+        .then(() => this.hubConnection!.invoke('JoinEngagement', engagementId))
         .catch(err => observer.error(err));
 
       return () => {
-        this.hubConnection.stop();
+        this.hubConnection?.stop().catch(() => {});
       };
     });
   }

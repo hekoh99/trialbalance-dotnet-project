@@ -6,5 +6,6 @@ public enum AccountType
     Liability,
     Equity,
     Revenue,
-    Expense
+    Expense,
+    Unclassified
 }

@@ -1,7 +1,8 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EngagementService } from '../../../core/services/engagement.service';
+import { ValidationService } from '../../../core/services/validation.service';
 import { Engagement } from '../../../core/models/engagement.model';
 import { TrialBalanceUploadComponent } from '../trial-balance-upload/trial-balance-upload.component';
 
@@ -18,7 +19,9 @@ export class EngagementDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private engagementService: EngagementService,
+    private validationService: ValidationService,
   ) {}
 
   ngOnInit() {
@@ -39,5 +42,16 @@ export class EngagementDetailComponent implements OnInit {
 
   onUploadComplete() {
     this.loadEngagement();
+  }
+
+  revalidate(trialBalanceId: string) {
+    this.validationService.trigger(this.engagementId, trialBalanceId).subscribe({
+      next: () => {
+        this.router.navigate(
+          ['/engagements', this.engagementId, 'validation'],
+          { queryParams: { trialBalanceId } },
+        );
+      },
+    });
   }
 }

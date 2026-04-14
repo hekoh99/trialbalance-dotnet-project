@@ -9,7 +9,7 @@ public class TrialBalance : Entity
     public DateTime SubmittedAt { get; private set; } = DateTime.UtcNow;
     public decimal TotalDebits { get; private set; }
     public decimal TotalCredits { get; private set; }
-    public bool IsBalanced => TotalDebits == TotalCredits;
+    public bool IsBalanced => Math.Abs(TotalDebits - TotalCredits) < BalanceTolerance.Epsilon;
 
     private readonly List<GLEntry> _glEntries = new();
     public IReadOnlyCollection<GLEntry> GlEntries => _glEntries.AsReadOnly();

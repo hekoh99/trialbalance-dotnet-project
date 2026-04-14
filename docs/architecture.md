@@ -4,7 +4,7 @@
 
 ```
 CSV Upload → .NET API → PostgreSQL (GL entries)
-                     → Service Bus → Python Worker → Azure OpenAI
+                     → Service Bus → Python Worker → Azure OpenAI (gpt-4o-mini)
                                                    → Cosmos DB (results)
                                                    → Service Bus (completion)
                      ← SignalR ← Angular Dashboard

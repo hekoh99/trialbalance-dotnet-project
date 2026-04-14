@@ -1,6 +1,6 @@
 export interface ValidationResult {
+  id: string;
   engagementId: string;
-  trialBalanceId: string;
   isBalanced: boolean;
   totalDebits: number;
   totalCredits: number;
@@ -8,12 +8,13 @@ export interface ValidationResult {
   classifications: ClassificationResult[];
   summary: Record<string, number>;
   flaggedItems: FlaggedItem[];
+  processedAt: string;
 }
 
 export interface ClassificationResult {
   accountCode: string;
   accountName: string;
-  classifiedAs: string;
+  classifiedAs: 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense' | 'Unclassified';
   confidence: number;
   flags: FlaggedItem[];
   reasoning?: string;
@@ -21,11 +22,17 @@ export interface ClassificationResult {
 
 export interface FlaggedItem {
   type: string;
-  message: string;
+  severity?: string;
+  detail?: string;
   accountCode?: string;
+  accountName?: string;
+  [key: string]: unknown;
 }
 
 export interface ValidationStatus {
-  status: 'Queued' | 'Processing' | 'Completed' | 'Failed';
   engagementId: string;
+  validationJobId: string;
+  status: 'Queued' | 'Processing' | 'Completed' | 'Failed';
+  errorMessage?: string | null;
+  timestamp: string;
 }

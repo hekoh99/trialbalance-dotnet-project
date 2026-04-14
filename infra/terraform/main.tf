@@ -48,15 +48,17 @@ module "keyvault" {
   postgres_connection_string  = var.postgres_connection_string
   servicebus_connection_string = module.servicebus.primary_connection_string
   cosmos_connection_string    = module.cosmos.primary_connection_string
-  azure_openai_key            = module.openai.primary_key
+  azure_openai_key            = var.azure_openai_key
+  azure_openai_endpoint       = var.azure_openai_endpoint
 }
 
-module "openai" {
-  source              = "./modules/openai"
-  project_name        = var.project_name
-  environment         = var.environment
-  resource_group_name = data.azurerm_resource_group.rg.name
-}
+# Using a separate OpenAI resource — module disabled.
+# module "openai" {
+#   source              = "./modules/openai"
+#   project_name        = var.project_name
+#   environment         = var.environment
+#   resource_group_name = data.azurerm_resource_group.rg.name
+# }
 
 module "observability" {
   source              = "./modules/observability"
