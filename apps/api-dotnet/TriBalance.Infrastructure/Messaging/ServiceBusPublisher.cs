@@ -1,18 +1,14 @@
 using System.Text.Json;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
+using TriBalance.Application.Validation;
 
 namespace TriBalance.Infrastructure.Messaging;
 
-public interface IValidationRequestPublisher
-{
-    Task PublishAsync(ValidationRequestMessage message, CancellationToken cancellationToken = default);
-}
-
 /// <summary>
-/// Publishes validation requests to the Service Bus queue that the Python Worker consumes.
-/// Uses a single ServiceBusClient (registered as singleton) and creates a sender per call
-/// (lightweight — SB SDK pools them internally).
+/// Implements Application.Validation.IValidationRequestPublisher on Service Bus.
+/// camelCase on the wire so the Python Worker's Pydantic models deserialize
+/// directly. Sender is created per call — SDK pools under the hood.
 /// </summary>
 public sealed class ServiceBusValidationRequestPublisher : IValidationRequestPublisher
 {
@@ -30,9 +26,9 @@ public sealed class ServiceBusValidationRequestPublisher : IValidationRequestPub
         _logger = logger;
     }
 
-    public async Task PublishAsync(ValidationRequestMessage message, CancellationToken cancellationToken = default)
+    public async Task PublishAsync(ValidationRequestPayload payload, CancellationToken cancellationToken = default)
     {
-        var body = JsonSerializer.Serialize(message, ServiceBusJson.Options);
+        var body = JsonSerializer.Serialize(payload, ServiceBusJson.Options);
         var sbMessage = new ServiceBusMessage(body) { ContentType = "application/json" };
 
         await using var sender = _client.CreateSender(_options.ValidationRequestQueue);
@@ -40,6 +36,6 @@ public sealed class ServiceBusValidationRequestPublisher : IValidationRequestPub
 
         _logger.LogInformation(
             "Published ValidationRequest engagement={EngagementId} job={JobId}",
-            message.EngagementId, message.ValidationJobId);
+            payload.EngagementId, payload.ValidationJobId);
     }
 }

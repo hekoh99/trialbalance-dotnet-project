@@ -33,9 +33,4 @@ public class PostgresEngagementRepository : IEngagementRepository
         await _context.Engagements.AddAsync(engagement);
         await _context.SaveChangesAsync();
     }
-
-    public async Task UpdateAsync(Engagement engagement)
-    {
-        await _context.SaveChangesAsync();
-    }
 }

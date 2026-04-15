@@ -2,11 +2,13 @@ import json
 import logging
 
 from openai import AzureOpenAI
+from opentelemetry import trace
 
 from app.config import settings
 from app.domain.models import GLEntryInput, ClassificationResult, AccountType
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 _client: AzureOpenAI | None = None
 
@@ -56,12 +58,17 @@ Return ONLY valid JSON matching this schema:
 GL Entries:
 {json.dumps([e.model_dump() for e in entries], indent=2)}"""
 
-    response = client.chat.completions.create(
-        model=settings.azure_openai_deployment,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"},
-        temperature=0.1,
-    )
+    # Span surfaces as a "dependency" call in App Insights; attributes let us
+    # filter by deployment and correlate latency to batch size.
+    with tracer.start_as_current_span("openai.classify") as span:
+        span.set_attribute("openai.deployment", settings.azure_openai_deployment)
+        span.set_attribute("gl_entries.count", len(entries))
+        response = client.chat.completions.create(
+            model=settings.azure_openai_deployment,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+        )
 
     result = json.loads(response.choices[0].message.content)
     by_code = {e.account_code: e for e in entries}

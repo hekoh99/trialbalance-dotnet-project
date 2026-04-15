@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using TriBalance.Application.Validation;
 
 namespace TriBalance.Infrastructure.Messaging;
 
@@ -16,9 +17,9 @@ public sealed class DisabledValidationRequestPublisher : IValidationRequestPubli
         _logger = logger;
     }
 
-    public Task PublishAsync(ValidationRequestMessage message, CancellationToken cancellationToken = default)
+    public Task PublishAsync(ValidationRequestPayload payload, CancellationToken cancellationToken = default)
     {
-        _logger.LogError("Service Bus not configured; cannot publish validation request for job {JobId}", message.ValidationJobId);
+        _logger.LogError("Service Bus not configured; cannot publish validation request for job {JobId}", payload.ValidationJobId);
         throw new InvalidOperationException(
             "Service Bus connection string is not configured. Set Azure:ServiceBus:ConnectionString in appsettings.");
     }

@@ -28,7 +28,7 @@
     </div>
   }
 
-  <!-- Queued / Processing progress indicator -->
+  <!-- Queued / Processing progress -->
   @if (status() === 'Queued' || status() === 'Processing') {
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 flex items-center gap-3">
       <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -44,7 +44,6 @@
     </div>
   }
 
-  <!-- Completed: balance summary + account type summary + classifications table -->
   @if (result(); as r) {
     <!-- Balance summary -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -66,28 +65,43 @@
       </div>
     </div>
 
-    <!-- Summary by account type -->
-    @if (summaryEntries().length > 0) {
-      <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <p class="text-sm font-medium text-gray-700 mb-3">Accounts by type</p>
-        <div class="flex flex-wrap gap-2">
-          @for (entry of summaryEntries(); track entry[0]) {
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              {{ entry[0] }}: {{ entry[1] }}
-            </span>
+    <!-- Account-type cards (click to filter the table below) -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+      @for (card of typeCards(); track card.type) {
+        <button type="button"
+                (click)="accountTypeFilter.set(card.type); needsReviewOnly.set(false)"
+                [class]="'text-left rounded-lg border p-3 transition hover:shadow-sm ' + accountTypeCardClass(card.type) + (accountTypeFilter() === card.type ? ' ring-2 ring-offset-1 ring-gray-400' : '')">
+          <p class="text-xs font-medium uppercase tracking-wide text-gray-600">{{ card.type }}</p>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{{ card.count }}</p>
+          @if (card.flaggedCount > 0) {
+            <p class="text-[11px] text-amber-700 mt-0.5">{{ card.flaggedCount }} flagged</p>
+          } @else {
+            <p class="text-[11px] text-gray-400 mt-0.5">&nbsp;</p>
           }
-        </div>
-      </div>
-    }
+        </button>
+      }
+    </div>
 
-    <!-- Flagged items — scenario 2 highlight -->
+    <!-- Flagged items with filter -->
     @if (r.flaggedItems.length > 0) {
       <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-        <p class="text-sm font-medium text-amber-900 mb-3">
-          ⚠️ {{ r.flaggedItems.length }} item(s) need review
-        </p>
-        <ul class="space-y-2">
-          @for (flag of r.flaggedItems; track $index) {
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+          <p class="text-sm font-medium text-amber-900">
+            ⚠️ {{ filteredFlaggedItems().length }} of {{ r.flaggedItems.length }} item(s) need review
+          </p>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-amber-900">Filter:</label>
+            <select [(ngModel)]="flagFilterValue"
+                    class="text-xs border border-amber-300 rounded px-2 py-1 bg-white">
+              <option value="all">All types</option>
+              @for (t of availableFlagTypes(); track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <ul class="space-y-2 max-h-64 overflow-y-auto pr-2">
+          @for (flag of filteredFlaggedItems(); track $index) {
             <li class="text-sm text-amber-900">
               <span class="font-mono text-xs bg-amber-100 px-1.5 py-0.5 rounded">
                 {{ flag.accountCode }}
@@ -101,24 +115,53 @@
       </div>
     }
 
-    <!-- Classifications table -->
+    <!-- Classifications table with search + sort -->
     <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <div class="px-4 py-3 border-b border-gray-200">
-        <p class="text-sm font-medium text-gray-700">Classifications ({{ r.classifications.length }})</p>
+      <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+        <p class="text-sm font-medium text-gray-700">
+          Classifications ({{ visibleClassifications().length }} of {{ r.classifications.length }})
+        </p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <input type="text" [(ngModel)]="searchTermValue" placeholder="Search code or name…"
+                 class="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <select [(ngModel)]="accountTypeFilterValue"
+                  class="text-sm border border-gray-300 rounded px-2 py-1 bg-white">
+            <option value="all">All types</option>
+            @for (t of accountTypes; track t) {
+              <option [value]="t">{{ t }}</option>
+            }
+          </select>
+          <label class="inline-flex items-center gap-1 text-sm text-gray-700">
+            <input type="checkbox" [(ngModel)]="needsReviewOnlyValue" />
+            Needs review
+          </label>
+          <button type="button" (click)="clearFilters()"
+                  class="text-xs text-blue-600 hover:text-blue-800">Reset</button>
+        </div>
       </div>
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
           <tr>
-            <th class="text-left px-4 py-2">Code</th>
-            <th class="text-left px-4 py-2">Account</th>
-            <th class="text-left px-4 py-2">Type</th>
-            <th class="text-right px-4 py-2">Confidence</th>
-            <th class="text-left px-4 py-2">Flags</th>
+            <th class="text-left px-4 py-2 cursor-pointer select-none" (click)="toggleSort('accountCode')">
+              Code {{ sortIndicator('accountCode') }}
+            </th>
+            <th class="text-left px-4 py-2 cursor-pointer select-none" (click)="toggleSort('accountName')">
+              Account {{ sortIndicator('accountName') }}
+            </th>
+            <th class="text-left px-4 py-2 cursor-pointer select-none" (click)="toggleSort('classifiedAs')">
+              Type {{ sortIndicator('classifiedAs') }}
+            </th>
+            <th class="text-right px-4 py-2 cursor-pointer select-none" (click)="toggleSort('confidence')">
+              Confidence {{ sortIndicator('confidence') }}
+            </th>
+            <th class="text-left px-4 py-2 cursor-pointer select-none" (click)="toggleSort('flags')">
+              Flags {{ sortIndicator('flags') }}
+            </th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          @for (c of r.classifications; track c.accountCode) {
-            <tr [class.bg-amber-50]="flagsByAccount().has(c.accountCode)">
+          @for (c of visibleClassifications(); track c.accountCode) {
+            <tr [class.bg-amber-50]="(flagsByAccount().get(c.accountCode)?.length ?? 0) > 0">
               <td class="px-4 py-2 font-mono text-xs">{{ c.accountCode }}</td>
               <td class="px-4 py-2">{{ c.accountName }}</td>
               <td class="px-4 py-2">
@@ -133,6 +176,12 @@
                     {{ f.type }}
                   </span>
                 }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">
+                No classifications match current filters.
               </td>
             </tr>
           }

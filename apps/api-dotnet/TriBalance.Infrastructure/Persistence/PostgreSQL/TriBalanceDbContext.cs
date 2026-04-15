@@ -13,6 +13,15 @@ public class TriBalanceDbContext : DbContext
 
     public TriBalanceDbContext(DbContextOptions<TriBalanceDbContext> options) : base(options) { }
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Force every DateTime/DateTime? column to round-trip as UTC. Without this,
+        // ASP.NET JSON binding of a bare date ("2024-12-31") yields Kind=Unspecified
+        // which Npgsql refuses to write to `timestamp with time zone`.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<NullableUtcDateTimeConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Engagement>(entity =>

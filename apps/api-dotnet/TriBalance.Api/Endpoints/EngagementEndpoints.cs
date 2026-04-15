@@ -1,6 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using TriBalance.Domain.Engagement;
-using TriBalance.Infrastructure.Persistence.PostgreSQL;
+using TriBalance.Application.Common.Messaging;
+using TriBalance.Application.Engagements;
+using TriBalance.Application.Engagements.Commands.CreateEngagement;
+using TriBalance.Application.Engagements.Queries.GetEngagement;
+using TriBalance.Application.Engagements.Queries.ListEngagements;
 
 namespace TriBalance.Api.Endpoints;
 
@@ -8,68 +10,34 @@ public static class EngagementEndpoints
 {
     public record CreateEngagementRequest(string ClientName, DateTime FiscalYearEnd);
 
-    public record EngagementResponse(
-        Guid Id,
-        string ClientName,
-        DateTime FiscalYearEnd,
-        DateTime CreatedAt,
-        List<TrialBalanceSummary> TrialBalances);
-
-    public record TrialBalanceSummary(
-        Guid Id,
-        string FileName,
-        DateTime SubmittedAt,
-        decimal TotalDebits,
-        decimal TotalCredits,
-        bool IsBalanced,
-        int GlEntryCount);
-
     public static void MapEngagementEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/engagements").WithTags("Engagements");
 
-        group.MapPost("/", async (CreateEngagementRequest request, IEngagementRepository repo) =>
-        {
-            var engagement = new Engagement(request.ClientName, request.FiscalYearEnd);
-            await repo.AddAsync(engagement);
-            return Results.Created($"/api/engagements/{engagement.Id}", ToResponse(engagement));
-        })
+        group.MapPost("/",
+            async (CreateEngagementRequest request, ICommandDispatcher dispatcher, CancellationToken ct) =>
+            {
+                var dto = await dispatcher.Send(
+                    new CreateEngagementCommand(request.ClientName, request.FiscalYearEnd), ct);
+                return Results.Created($"/api/engagements/{dto.Id}", dto);
+            })
         .WithName("CreateEngagement")
-        .Produces<EngagementResponse>(StatusCodes.Status201Created);
+        .Produces<EngagementDto>(StatusCodes.Status201Created);
 
-        group.MapGet("/{id:guid}", async (Guid id, IEngagementRepository repo) =>
-        {
-            var engagement = await repo.GetByIdAsync(id);
-            if (engagement is null)
-                return Results.NotFound();
-            return Results.Ok(ToResponse(engagement));
-        })
+        group.MapGet("/{id:guid}",
+            async (Guid id, IQueryDispatcher dispatcher, CancellationToken ct) =>
+            {
+                var dto = await dispatcher.Send(new GetEngagementQuery(id), ct);
+                return dto is null ? Results.NotFound() : Results.Ok(dto);
+            })
         .WithName("GetEngagement")
-        .Produces<EngagementResponse>()
+        .Produces<EngagementDto>()
         .Produces(StatusCodes.Status404NotFound);
 
-        group.MapGet("/", async (IEngagementRepository repo) =>
-        {
-            var engagements = await repo.GetAllAsync();
-            return Results.Ok(engagements.Select(ToResponse));
-        })
+        group.MapGet("/",
+            async (IQueryDispatcher dispatcher, CancellationToken ct) =>
+                Results.Ok(await dispatcher.Send(new ListEngagementsQuery(), ct)))
         .WithName("ListEngagements")
-        .Produces<IEnumerable<EngagementResponse>>();
+        .Produces<IReadOnlyList<EngagementDto>>();
     }
-
-    private static EngagementResponse ToResponse(Engagement e) => new(
-        e.Id,
-        e.ClientName,
-        e.FiscalYearEnd,
-        e.CreatedAt,
-        e.TrialBalances.Select(tb => new TrialBalanceSummary(
-            tb.Id,
-            tb.FileName,
-            tb.SubmittedAt,
-            tb.TotalDebits,
-            tb.TotalCredits,
-            tb.IsBalanced,
-            tb.GlEntries.Count
-        )).ToList()
-    );
 }

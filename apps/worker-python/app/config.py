@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Key Vault (optional — for production, reads secrets into env vars)
     key_vault_uri: str = ""
 
+    # Application Insights — connection string drives OpenTelemetry export.
+    # Leave blank in environments without App Insights; configure_azure_monitor
+    # becomes a no-op then.
+    application_insights_connection_string: str = ""
+
     # Shared thresholds — keep in sync with .NET BalanceTolerance.Epsilon
     balance_tolerance: float = 0.01
     low_confidence_threshold: float = 0.7

@@ -3,38 +3,34 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using TriBalance.Domain.Validation;
+using TriBalance.Application.Common.Messaging;
+using TriBalance.Application.Validation.Commands.ApplyValidationResult;
 
 namespace TriBalance.Infrastructure.Messaging;
 
 /// <summary>
-/// Long-running background service that consumes worker results from
-/// tb-validation-result, transitions validation_jobs state, and notifies the
-/// dashboard through the injected status notifier.
-///
-/// Runs inside the API process so a single hub instance is shared with the
-/// HTTP pipeline — this is what allows the notifier to push to SignalR
-/// groups that were joined via the /hubs/validation endpoint.
+/// Background consumer for tb-validation-result. Doesn't know anything about
+/// job state transitions or SignalR — it just turns each message into an
+/// ApplyValidationResultCommand and dispatches. All transition logic + dashboard
+/// push lives in the command handler so HTTP-triggered and Service-Bus-triggered
+/// paths share exactly one implementation (and the same logging pipeline).
 /// </summary>
 public sealed class ValidationResultConsumer : BackgroundService
 {
     private readonly ServiceBusClient _client;
     private readonly ServiceBusOptions _options;
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IValidationStatusNotifierAdapter _notifier;
     private readonly ILogger<ValidationResultConsumer> _logger;
 
     public ValidationResultConsumer(
         ServiceBusClient client,
         ServiceBusOptions options,
         IServiceScopeFactory scopeFactory,
-        IValidationStatusNotifierAdapter notifier,
         ILogger<ValidationResultConsumer> logger)
     {
         _client = client;
         _options = options;
         _scopeFactory = scopeFactory;
-        _notifier = notifier;
         _logger = logger;
     }
 
@@ -60,10 +56,7 @@ public sealed class ValidationResultConsumer : BackgroundService
         {
             await Task.Delay(Timeout.Infinite, stoppingToken);
         }
-        catch (OperationCanceledException)
-        {
-            // graceful shutdown
-        }
+        catch (OperationCanceledException) { /* graceful shutdown */ }
         finally
         {
             await processor.StopProcessingAsync(CancellationToken.None);
@@ -74,77 +67,34 @@ public sealed class ValidationResultConsumer : BackgroundService
     private async Task HandleMessageAsync(ProcessMessageEventArgs args)
     {
         var body = args.Message.Body.ToString();
-        ValidationResultMessage? result;
+        ValidationResultMessage? parsed;
         try
         {
-            result = JsonSerializer.Deserialize<ValidationResultMessage>(body, ServiceBusJson.Options);
+            parsed = JsonSerializer.Deserialize<ValidationResultMessage>(body, ServiceBusJson.Options);
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Malformed result payload, dead-lettering. Body: {Body}", body);
+            _logger.LogError(ex, "Malformed result payload; dead-lettering. Body: {Body}", body);
             await args.DeadLetterMessageAsync(args.Message, "MalformedPayload", ex.Message);
             return;
         }
 
-        if (result is null)
+        if (parsed is null)
         {
             await args.DeadLetterMessageAsync(args.Message, "NullPayload");
             return;
         }
 
+        // Scope-per-message so scoped services (DbContext, repositories) have
+        // their own unit of work. Dispatcher + handler do the rest.
         await using var scope = _scopeFactory.CreateAsyncScope();
-        var jobRepo = scope.ServiceProvider.GetRequiredService<IValidationJobRepository>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<ICommandDispatcher>();
 
-        var job = await jobRepo.GetByIdAsync(result.ValidationJobId);
-        if (job is null)
-        {
-            _logger.LogWarning("Received result for unknown job {JobId}", result.ValidationJobId);
-            await args.CompleteMessageAsync(args.Message);
-            return;
-        }
-
-        ApplyStatus(job, result);
-        await jobRepo.UpdateAsync(job);
-
-        await _notifier.PushAsync(
-            job.EngagementId,
-            job.Id,
-            job.Status.ToString(),
-            job.ErrorMessage);
+        await dispatcher.Send(new ApplyValidationResultCommand(
+            parsed.ValidationJobId,
+            parsed.Status,
+            parsed.ErrorMessage));
 
         await args.CompleteMessageAsync(args.Message);
     }
-
-    private static void ApplyStatus(ValidationJob job, ValidationResultMessage msg)
-    {
-        switch (msg.Status.ToLowerInvariant())
-        {
-            case "processing":
-                job.MarkProcessing();
-                break;
-            case "completed":
-                job.MarkCompleted();
-                break;
-            case "failed":
-                job.MarkFailed(msg.ErrorMessage ?? "Worker reported failure without message");
-                break;
-            default:
-                job.MarkFailed($"Unknown status: {msg.Status}");
-                break;
-        }
-    }
-}
-
-/// <summary>
-/// Tiny seam so Infrastructure can push status updates without referencing
-/// the Api project (which owns the SignalR hub).
-/// </summary>
-public interface IValidationStatusNotifierAdapter
-{
-    Task PushAsync(
-        Guid engagementId,
-        Guid validationJobId,
-        string status,
-        string? errorMessage,
-        CancellationToken cancellationToken = default);
 }
