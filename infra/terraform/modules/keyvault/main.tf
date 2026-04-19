@@ -17,32 +17,42 @@ resource "azurerm_key_vault" "kv" {
   soft_delete_retention_days = 7
 }
 
+# Secret names use '--' as separator because Key Vault doesn't allow ':'.
+# .NET's AddAzureKeyVault provider automatically translates '--' → ':' on load.
+# e.g. "ConnectionStrings--Postgres" → config key "ConnectionStrings:Postgres"
+
 resource "azurerm_key_vault_secret" "postgres_connection_string" {
-  name         = "postgres-connection-string"
+  name         = "ConnectionStrings--Postgres"
   value        = var.postgres_connection_string
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "servicebus_connection_string" {
-  name         = "servicebus-connection-string"
+  name         = "Azure--ServiceBus--ConnectionString"
   value        = var.servicebus_connection_string
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "cosmos_connection_string" {
-  name         = "cosmos-connection-string"
+  name         = "Azure--CosmosDb--ConnectionString"
   value        = var.cosmos_connection_string
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "azure_openai_key" {
-  name         = "azure-openai-key"
+  name         = "Azure--OpenAI--ApiKey"
   value        = var.azure_openai_key
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "azure_openai_endpoint" {
-  name         = "azure-openai-endpoint"
+  name         = "Azure--OpenAI--Endpoint"
   value        = var.azure_openai_endpoint
+  key_vault_id = azurerm_key_vault.kv.id
+}
+
+resource "azurerm_key_vault_secret" "appinsights_connection_string" {
+  name         = "ApplicationInsights--ConnectionString"
+  value        = var.appinsights_connection_string
   key_vault_id = azurerm_key_vault.kv.id
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { ValidationStatus } from '../models/validation-result.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class SignalRService {
@@ -15,7 +16,7 @@ export class SignalRService {
   connect(engagementId: string): Observable<ValidationStatus> {
     return new Observable<ValidationStatus>(observer => {
       this.hubConnection = new signalR.HubConnectionBuilder()
-        .withUrl('http://localhost:5211/hubs/validation')
+        .withUrl(`${environment.apiUrl}/hubs/validation`)
         .withAutomaticReconnect()
         .build();
 

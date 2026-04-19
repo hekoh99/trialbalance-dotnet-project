@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ValidationResult } from '../models/validation-result.model';
+import { environment } from '../../../environments/environment';
 
 export interface ValidationJob {
   id: string;
@@ -16,7 +17,7 @@ export interface ValidationJob {
 
 @Injectable({ providedIn: 'root' })
 export class ValidationService {
-  private readonly apiBase = 'http://localhost:5211/api/engagements';
+  private readonly apiBase = `${environment.apiUrl}/api/engagements`;
 
   constructor(private http: HttpClient) {}
 

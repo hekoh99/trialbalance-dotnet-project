@@ -50,6 +50,7 @@ module "keyvault" {
   cosmos_connection_string    = module.cosmos.primary_connection_string
   azure_openai_key            = var.azure_openai_key
   azure_openai_endpoint       = var.azure_openai_endpoint
+  appinsights_connection_string = module.observability.connection_string
 }
 
 # Using a separate OpenAI resource — module disabled.

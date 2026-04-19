@@ -47,3 +47,9 @@ variable "azure_openai_endpoint" {
   sensitive = true
 }
 
+variable "appinsights_connection_string" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+

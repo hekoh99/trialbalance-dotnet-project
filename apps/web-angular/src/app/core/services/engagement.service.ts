@@ -6,10 +6,11 @@ import {
   CreateEngagementRequest,
   TrialBalanceUploadResult,
 } from '../models/engagement.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class EngagementService {
-  private readonly apiUrl = 'http://localhost:5211/api/engagements';
+  private readonly apiUrl = `${environment.apiUrl}/api/engagements`;
 
   constructor(private http: HttpClient) {}
 

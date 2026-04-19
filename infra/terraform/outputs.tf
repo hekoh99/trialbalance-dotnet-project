@@ -25,6 +25,10 @@ output "container_registry_login_server" {
   value = module.container_apps.acr_login_server
 }
 
+output "api_url" {
+  value = module.container_apps.api_url
+}
+
 output "static_web_app_hostname" {
   value = module.static_web_app.default_hostname
 }
