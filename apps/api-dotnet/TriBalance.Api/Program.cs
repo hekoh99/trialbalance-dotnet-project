@@ -50,10 +50,17 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
+// CORS — localhost for dev, Static Web App for production.
+// Additional origins can be added via config "Cors:AllowedOrigins" (semicolon-separated).
+var allowedOrigins = new List<string> { "http://localhost:4200" };
+var extraOrigins = builder.Configuration["Cors:AllowedOrigins"];
+if (!string.IsNullOrWhiteSpace(extraOrigins))
+    allowedOrigins.AddRange(extraOrigins.Split(';', StringSplitOptions.RemoveEmptyEntries));
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Angular", policy =>
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins(allowedOrigins.ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials()); // required for SignalR WebSocket auth

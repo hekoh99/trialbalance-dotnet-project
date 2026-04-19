@@ -75,4 +75,32 @@ module "container_apps" {
   location                   = var.location
   resource_group_name        = data.azurerm_resource_group.rg.name
   log_analytics_workspace_id = module.observability.log_analytics_workspace_id
+  key_vault_uri              = module.keyvault.vault_uri
+  servicebus_connection_string = module.servicebus.primary_connection_string
+  cosmos_connection_string   = module.cosmos.primary_connection_string
+  azure_openai_endpoint      = var.azure_openai_endpoint
+  azure_openai_key           = var.azure_openai_key
+  appinsights_connection_string = module.observability.connection_string
+  static_web_app_origin        = "https://${module.static_web_app.default_hostname}"
+}
+
+# ── Key Vault access policy for API's Managed Identity ────────
+# Separate resource (not inline in keyvault module) to avoid circular
+# dependency: keyvault creates secrets → container_apps references them
+# → container_apps creates identity → identity needs keyvault access.
+# azurerm_key_vault_access_policy runs after both modules are done.
+resource "azurerm_key_vault_access_policy" "api_identity" {
+  key_vault_id = module.keyvault.vault_id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = module.container_apps.api_identity_principal_id
+
+  secret_permissions = ["Get", "List"]
+}
+
+# ── Angular frontend ─────────────────────────────────────────
+module "static_web_app" {
+  source              = "./modules/static_web_app"
+  project_name        = var.project_name
+  environment         = var.environment
+  resource_group_name = data.azurerm_resource_group.rg.name
 }

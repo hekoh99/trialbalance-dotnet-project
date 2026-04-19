@@ -24,3 +24,12 @@ output "application_insights_connection_string" {
 output "container_registry_login_server" {
   value = module.container_apps.acr_login_server
 }
+
+output "static_web_app_hostname" {
+  value = module.static_web_app.default_hostname
+}
+
+output "static_web_app_api_key" {
+  value     = module.static_web_app.api_key
+  sensitive = true
+}

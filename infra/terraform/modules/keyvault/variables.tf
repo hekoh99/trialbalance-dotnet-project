@@ -46,3 +46,4 @@ variable "azure_openai_endpoint" {
   type      = string
   sensitive = true
 }
+
