@@ -24,11 +24,11 @@ public static class EngagementEndpoints
         .WithName("CreateEngagement")
         .Produces<EngagementDto>(StatusCodes.Status201Created);
 
-        group.MapGet("/{id:guid}",
+        group.MapGet("/{id:guid}", // if  (not-a-guid) → 400 (.NET 자동 처리)
             async (Guid id, IQueryDispatcher dispatcher, CancellationToken ct) =>
             {
                 var dto = await dispatcher.Send(new GetEngagementQuery(id), ct);
-                return dto is null ? Results.NotFound() : Results.Ok(dto);
+                return dto is null ? Results.NotFound() : Results.Ok(dto); // 만약 id에 해당하는 Engagement가 없으면 404 Not Found 반환, 있으면 200 OK와 함께 DTO 반환
             })
         .WithName("GetEngagement")
         .Produces<EngagementDto>()
