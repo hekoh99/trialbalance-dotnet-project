@@ -1,0 +1,99 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ─── .NET API ───────────────────────────────
+  deploy-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR Login
+        uses: docker/login-action@v3
+        with:
+          registry: tribalanceacrdev.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build & Push API
+        run: |
+          docker build \
+            -t tribalanceacrdev.azurecr.io/api-dotnet:${{ github.sha }} \
+            -t tribalanceacrdev.azurecr.io/api-dotnet:latest \
+            apps/api-dotnet/
+          docker push tribalanceacrdev.azurecr.io/api-dotnet:${{ github.sha }}
+          docker push tribalanceacrdev.azurecr.io/api-dotnet:latest
+
+      - name: Deploy API to Container App
+        run: |
+          az containerapp update \
+            --name tribalance-api-dev \
+            --resource-group compilation-prep-lab-dev-rg \
+            --image tribalanceacrdev.azurecr.io/api-dotnet:${{ github.sha }}
+
+  # ─── Python Worker ──────────────────────────
+  deploy-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR Login
+        uses: docker/login-action@v3
+        with:
+          registry: tribalanceacrdev.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build & Push Worker
+        run: |
+          docker build \
+            -t tribalanceacrdev.azurecr.io/worker-python:${{ github.sha }} \
+            -t tribalanceacrdev.azurecr.io/worker-python:latest \
+            apps/worker-python/
+          docker push tribalanceacrdev.azurecr.io/worker-python:${{ github.sha }}
+          docker push tribalanceacrdev.azurecr.io/worker-python:latest
+
+      - name: Deploy Worker to Container App
+        run: |
+          az containerapp update \
+            --name tribalance-worker-dev \
+            --resource-group compilation-prep-lab-dev-rg \
+            --image tribalanceacrdev.azurecr.io/worker-python:${{ github.sha }}
+
+  # ─── Angular ────────────────────────────────
+  deploy-angular:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install & Build
+        run: |
+          cd apps/web-angular
+          npm install
+          ng build --configuration production
+
+      - name: Deploy to Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_TOKEN }}
+          action: "upload"
+          app_location: "apps/web-angular"
+          output_location: "dist/web-angular/browser"
