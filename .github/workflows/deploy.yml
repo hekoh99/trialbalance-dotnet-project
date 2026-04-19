@@ -87,7 +87,7 @@ jobs:
       - name: Install & Build
         run: |
           cd apps/web-angular
-          npm install
+          npm install --legacy-peer-deps
           ng build --configuration production
 
       - name: Deploy to Static Web Apps
