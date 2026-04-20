@@ -1,8 +1,10 @@
 name: Build and Deploy
 
+# disable github action
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:  # 수동 실행만 가능하게
+  # push:            # 자동 트리거 주석 처리
+  #   branches: [main]
 
 jobs:
   # ─── .NET API ───────────────────────────────
@@ -89,7 +91,7 @@ jobs:
           cd apps/web-angular
           npm install --legacy-peer-deps
           npx ng build --configuration production
-      
+
       - name: Deploy to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
