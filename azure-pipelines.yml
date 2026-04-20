@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  vmImage: ubuntu-latest
+  name: Default  # Microsoft hosted 대신 self-hosted
 
 variables:
   - group: tribalance-secrets
