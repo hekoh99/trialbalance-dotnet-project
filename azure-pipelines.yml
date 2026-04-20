@@ -1,0 +1,118 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  - group: tribalance-secrets
+  - name: resourceGroup
+    value: compilation-prep-lab-dev-rg
+  - name: acrRegistry
+    value: tribalanceacrdev.azurecr.io
+
+stages:
+
+  # ─── .NET API ───────────────────────────────
+  - stage: DeployAPI
+    displayName: Deploy .NET API
+    jobs:
+      - job: BuildAndDeploy
+        displayName: Build and Deploy API
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Build and Push API Image
+            inputs:
+              azureSubscription: tribalance-azure
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az acr login --name tribalanceacrdev
+                docker build \
+                  -t $(acrRegistry)/api-dotnet:$(Build.BuildId) \
+                  -t $(acrRegistry)/api-dotnet:latest \
+                  apps/api-dotnet/
+                docker push $(acrRegistry)/api-dotnet:$(Build.BuildId)
+                docker push $(acrRegistry)/api-dotnet:latest
+
+          - task: AzureCLI@2
+            displayName: Deploy API to Container App
+            inputs:
+              azureSubscription: tribalance-azure
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az containerapp update \
+                  --name tribalance-api-dev \
+                  --resource-group $(resourceGroup) \
+                  --image $(acrRegistry)/api-dotnet:$(Build.BuildId)
+
+  # ─── Python Worker ──────────────────────────
+  - stage: DeployWorker
+    displayName: Deploy Python Worker
+    dependsOn: []  # API랑 병렬 실행
+    jobs:
+      - job: BuildAndDeploy
+        displayName: Build and Deploy Worker
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Build and Push Worker Image
+            inputs:
+              azureSubscription: tribalance-azure
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az acr login --name tribalanceacrdev
+                docker build \
+                  -t $(acrRegistry)/worker-python:$(Build.BuildId) \
+                  -t $(acrRegistry)/worker-python:latest \
+                  apps/worker-python/
+                docker push $(acrRegistry)/worker-python:$(Build.BuildId)
+                docker push $(acrRegistry)/worker-python:latest
+
+          - task: AzureCLI@2
+            displayName: Deploy Worker to Container App
+            inputs:
+              azureSubscription: tribalance-azure
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az containerapp update \
+                  --name tribalance-worker-dev \
+                  --resource-group $(resourceGroup) \
+                  --image $(acrRegistry)/worker-python:$(Build.BuildId)
+
+  # ─── Angular ────────────────────────────────
+  - stage: DeployAngular
+    displayName: Deploy Angular
+    dependsOn: []  # 병렬 실행
+    jobs:
+      - job: BuildAndDeploy
+        displayName: Build and Deploy Angular
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            displayName: Setup Node
+            inputs:
+              versionSpec: '20.x'
+
+          - script: |
+              cd apps/web-angular
+              npm install --legacy-peer-deps
+              npx ng build --configuration production
+            displayName: Build Angular
+
+          - task: AzureStaticWebApp@0
+            displayName: Deploy to Static Web Apps
+            inputs:
+              app_location: 'apps/web-angular/dist/web-angular/browser'
+              output_location: ''
+              skip_app_build: true
+              azure_static_web_apps_api_token: $(STATIC_WEB_APPS_TOKEN)
