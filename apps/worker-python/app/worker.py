@@ -1,6 +1,6 @@
 import logging
 
-from azure.servicebus import ServiceBusClient
+from azure.servicebus import AutoLockRenewer, ServiceBusClient
 
 from app.config import settings
 from app.domain.models import ValidationRequest, ValidationResult
@@ -73,8 +73,14 @@ def run_worker() -> None:
     logger.info("Starting worker, listening on queue: %s", settings.validation_request_queue)
     client = ServiceBusClient.from_connection_string(settings.servicebus_connection_string)
 
-    with client:
-        receiver = client.get_queue_receiver(queue_name=settings.validation_request_queue)
+    # AutoLockRenewer renews the Service Bus message lock in a background thread
+    # so long-running OpenAI classification calls don't exceed the default 60s lock,
+    # which would cause complete_message/abandon_message to fail with MessageLockLostError.
+    with client, AutoLockRenewer(max_lock_renewal_duration=600) as renewer:
+        receiver = client.get_queue_receiver(
+            queue_name=settings.validation_request_queue,
+            auto_lock_renewer=renewer,
+        )
         with receiver:
             while True:
                 messages = receiver.receive_messages(max_message_count=1, max_wait_time=30)
