@@ -16,5 +16,3 @@
 ### ValidationJob (Entity)
 - Status: Queued → Processing → Completed | Failed
 - Links Engagement to TrialBalance for async processing
-
-### To be added
