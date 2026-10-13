@@ -24,14 +24,3 @@ python -m uvicorn app.main:app --port 8000
 cd apps/web-angular
 ng serve
 ```
-
-## Azure Resources
-
-All infrastructure is managed via Terraform in `infra/terraform/`.
-
-```bash
-cd infra/terraform
-terraform init
-terraform plan
-terraform apply
-```
